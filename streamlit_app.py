@@ -1,13 +1,13 @@
 """
-DGW MI & Accelerate — working proof-of-concept (SQLite backend)
+DGW MI & Accelerate — Excel-backed edition.
 
-  📝 Submit update — OpCos edit what changed; on submit it is saved into a local
-     SQLite database (submissions.db) and an Excel copy is offered for download.
-  📊 Dashboard     — reads the database and shows everything (charts, RAG, progress,
-     a who's-in / who's-missing tracker, and a combined Excel export).
+  📝 Submit update — OpCos edit what changed; on submit the row(s) are written into ONE
+     master Excel workbook (submissions.xlsx). An individual Excel copy is also offered.
+  📊 Dashboard     — reads the master workbook and shows everything, and lets you download
+     the whole master Excel.
 
-Runs with no cloud and no setup. When you move to MTN cloud, only db.py changes
-(swap SQLite for SQL Server / Postgres) — the rest of the app stays the same.
+Everything lives in submissions.xlsx. Only excel_store.py touches the file, so moving the
+master workbook to OneDrive/SharePoint later means changing just that one file.
 """
 
 import os
@@ -16,7 +16,7 @@ import datetime
 import streamlit as st
 
 import common
-import db
+import excel_store as store
 from common import (
     MONTHS, KIND_LABEL, KIND_ORDER, READONLY_COLS, RAG_OPTS, MATURITY,
     ascii_slug, is_section, field_type, rag_normalise, row_info, col_label,
@@ -25,7 +25,6 @@ from excel_builder import build_workbook
 from dashboard import render_dashboard
 
 st.set_page_config(page_title="MTN EBU · MI & Accelerate", page_icon="🟡", layout="wide")
-db.init_db()
 
 
 @st.cache_data
@@ -57,9 +56,6 @@ if view == "📊 Dashboard":
     st.stop()
 
 
-# =========================================================================== #
-#  SUBMIT VIEW
-# =========================================================================== #
 def build_payload(country, reporting_month_name, year, name, email, answers):
     out = {"opco": country, "reportingMonth": "%s %s" % (reporting_month_name, year),
            "submittedBy": name, "email": email,
@@ -113,7 +109,7 @@ with st.sidebar:
     ryear = st.selectbox("Year", [str(today.year - 1), str(today.year), str(today.year + 1)], index=1)
     uname = st.text_input("Your name", placeholder="Full name")
     uemail = st.text_input("Your email", placeholder="name.surname@mtn.com")
-    st.caption("Saved to: local database `submissions.db` ✅")
+    st.caption("Saved to master Excel: `submissions.xlsx` ✅")
 
 if country not in DATA:
     st.info("👈 Choose your OpCo in the sidebar to load your initiatives, or switch to the **Dashboard** view.")
@@ -199,20 +195,25 @@ if "submitted" not in st.session_state:
 if st.button("Submit to Group EBU ✓", type="primary", disabled=not valid):
     payload = build_payload(country, rmonth, ryear, uname.strip(), uemail.strip(), answers)
     try:
-        rid = db.save_submission(payload, ryear, rmonth)
+        n = store.save_submission(payload, ryear, rmonth)
         xlsx = build_workbook(payload)
         st.session_state.submitted = {
-            "opco": country, "period": "%s %s" % (rmonth, ryear), "id": rid,
+            "opco": country, "period": "%s %s" % (rmonth, ryear), "count": n,
             "updated": payload["itemsUpdated"], "xlsx": xlsx,
             "fname": "MI_Accelerate_%s_%s%02d.xlsx" % (ascii_slug(country), ryear, MONTHS.index(rmonth) + 1),
         }
     except Exception as exc:
-        st.error("Could not save to the database: %s" % exc)
+        st.error("Could not save to the Excel workbook: %s" % exc)
         st.session_state.submitted = None
 
 if st.session_state.submitted:
     s = st.session_state.submitted
-    st.success("**Saved to the database.** %s — %s · %d initiative(s) updated (record #%d). "
-               "It now appears on the Dashboard." % (s["opco"], s["period"], s["updated"], s["id"]))
-    st.download_button("⬇️ Download your Excel copy", data=s["xlsx"], file_name=s["fname"],
+    st.success("**Saved to the master Excel.** %s — %s · %d initiative(s) updated. "
+               "The workbook now holds %d OpCo submission(s). It appears on the Dashboard."
+               % (s["opco"], s["period"], s["updated"], s["count"]))
+    c1, c2 = st.columns(2)
+    c1.download_button("⬇️ Download your OpCo Excel", data=s["xlsx"], file_name=s["fname"],
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    c2.download_button("⬇️ Download master Excel (all OpCos)", data=store.master_bytes(),
+                       file_name="MI_Accelerate_submissions.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

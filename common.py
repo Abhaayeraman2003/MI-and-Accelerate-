@@ -1,4 +1,3 @@
-"""Shared constants + helpers for the DGW MI & Accelerate app."""
 import re
 MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"]
 KIND_LABEL={"MI":"MI Initiatives","Accelerate":"Accelerate Initiatives","Priorities":"MI & Accelerate Priorities (KPIs)","MI Tracker":"Monthly Actions Tracker"}

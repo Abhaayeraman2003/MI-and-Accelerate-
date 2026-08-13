@@ -1,4 +1,3 @@
-"""Server-side styled Excel builder."""
 import io, re, datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side

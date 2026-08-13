@@ -1,15 +1,14 @@
 """
-Dashboard view — reads submissions straight from the SQLite database and shows
-everything: metric cards, RAG donut, Accelerate progress, MI maturity, a
-submission tracker (who's in / who's missing), and a combined Excel export.
+Dashboard — reads submissions from the master Excel workbook (submissions.xlsx)
+and shows everything: tracker, metric cards, RAG donut, Accelerate progress,
+MI maturity, plus a button to download the whole master Excel.
 """
 
-import io
 import statistics
 import streamlit as st
 
 import common
-import db
+import excel_store as store
 
 try:
     import plotly.graph_objects as go
@@ -73,13 +72,11 @@ def _progress_row(label, pct, right):
 def render_dashboard(DATA):
     st.header("📊 MI & Accelerate — Executive Dashboard")
 
-    subs = db.load_submissions()
+    subs = store.load_submissions()
     all_opcos = list(DATA.keys())
     submitted_opcos = sorted({p.get("opco") for p in subs})
 
-    # ---- submission tracker ----
-    done = len(submitted_opcos)
-    total = len(all_opcos)
+    done, total = len(submitted_opcos), len(all_opcos)
     tc1, tc2 = st.columns([1, 3])
     tc1.metric("Submissions received", "%d / %d" % (done, total))
     missing = [o for o in all_opcos if o not in submitted_opcos]
@@ -88,13 +85,15 @@ def render_dashboard(DATA):
             st.write("**In:** " + ", ".join(submitted_opcos))
         st.write("**Still waiting on:** " + (", ".join(missing) if missing else "— none, all in! 🎉"))
 
-    use_baseline = False
-    if not subs:
-        st.warning("No submissions in the database yet — showing **baseline (deck) data** so you "
-                   "can preview. As OpCos submit, this dashboard fills in automatically.")
-        use_baseline = True
+    # Always offer the master Excel download
+    st.download_button("⬇️ Download the master Excel (all submissions)",
+                       data=store.master_bytes(), file_name="MI_Accelerate_submissions.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+    use_baseline = not subs
     if use_baseline:
+        st.warning("No submissions in the workbook yet — showing **baseline (deck) data** so you can "
+                   "preview. As OpCos submit, the dashboard fills in automatically.")
         records = []
         for c in DATA:
             records += common.iter_baseline_records(DATA, c)
@@ -102,8 +101,6 @@ def render_dashboard(DATA):
         records = common.submissions_to_records(subs)
 
     st.divider()
-
-    # ---- filter ----
     opcos_in_data = sorted({r["opco"] for r in records})
     sel = st.multiselect("Filter OpCo(s)", opcos_in_data, default=opcos_in_data)
     records = [r for r in records if r["opco"] in sel]
@@ -198,38 +195,5 @@ def render_dashboard(DATA):
                 for r, p, cur, tgt in sorted(mi_prog, key=lambda x: x[1], reverse=True):
                     _progress_row("%s · %s" % (r["opco"], r["initiative"]), p, "%s→%s" % (cur, tgt))
 
-    st.divider()
-    _export_combined(records)
-    st.caption("Data source: local SQLite database (`submissions.db`). "
+    st.caption("Data source: master Excel workbook `submissions.xlsx` (sheet ‘Submissions’). "
                "Accelerate % = actual ÷ estimated impact; maturity % maps Basic→Intermediate→Control→Advanced.")
-
-
-def _export_combined(records):
-    try:
-        from openpyxl import Workbook
-        from openpyxl.styles import Font, PatternFill
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "All submissions"
-        headers = ["OpCo", "Type", "Section", "Initiative", "RAG", "Accelerate %",
-                   "Actual", "Estimated", "Maturity %", "Current", "Target"]
-        for c, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=c, value=h)
-            cell.font = Font(bold=True, color="0B0B0B")
-            cell.fill = PatternFill("solid", fgColor="FFCB05")
-        for rec in records:
-            ap, act, est, _e, _a = common.accel_progress(rec["fields"]) if rec["kind"] == "Accelerate" else (None, None, None, None, None)
-            mp, cur, tgt = common.maturity_progress(rec["fields"]) if rec["kind"] == "MI" else (None, None, None)
-            ws.append([rec["opco"], rec["type"], rec.get("section", ""), rec["initiative"],
-                       common.rag_bucket(rec["fields"].get("RAG Status", "")),
-                       round(ap, 1) if ap is not None else "",
-                       act if act is not None else "", est if est is not None else "",
-                       round(mp, 0) if mp is not None else "", cur or "", tgt or ""])
-        ws.freeze_panes = "A2"
-        buf = io.BytesIO()
-        wb.save(buf)
-        st.download_button("⬇️ Download combined report (all OpCos in view) as Excel",
-                           data=buf.getvalue(), file_name="MI_Accelerate_Combined_Report.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    except Exception as exc:
-        st.caption("Combined export unavailable: %s" % exc)

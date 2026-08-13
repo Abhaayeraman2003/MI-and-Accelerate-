@@ -1,57 +1,29 @@
-# DGW MI & Accelerate — working proof-of-concept
+# DGW MI & Accelerate — Excel edition
 
-A single, self-contained app that runs **right now** on your laptop, shows **everything**,
-and already stores data in a **real database** (SQLite) — so moving to MTN cloud later is easy.
+Everything is stored in ONE master Excel workbook: **submissions.xlsx**.
 
-## ▶️ Run it (2 steps)
+## Run it
+Windows: double-click `run_windows.bat`  ·  Mac/Linux: `./run_mac_linux.sh`
+…or:  `pip install -r requirements.txt`  then  `streamlit run streamlit_app.py`
 
-**Windows:** double-click **`run_windows.bat`**
-**Mac/Linux:** run **`./run_mac_linux.sh`**
+## How it works
+- **📝 Submit** → the OpCo's answers are written into `submissions.xlsx`
+  (sheet **“Submissions”** = a clean, filterable table; one row per initiative with OpCo,
+  RAG, Accelerate %, Actual, Estimated, Maturity, Comment). Re-submitting the same OpCo +
+  month overwrites its rows (no duplicates). Each person also gets an Excel copy to download.
+- **📊 Dashboard** → reads `submissions.xlsx` and shows the tracker, charts, RAG mix and
+  Accelerate progress, with a **“Download master Excel”** button.
 
-…or manually:
-```bash
-pip install -r requirements.txt
-streamlit run streamlit_app.py
-```
-Then open **http://localhost:8501**.
+You can also just open `submissions.xlsx` directly in Excel — the “Submissions” sheet is
+ready to filter, pivot, or chart.
 
-## What it does
-
-- **📝 Submit update** — pick an OpCo + month, edit what changed, hit Submit.
-  The submission is written to a local database file **`submissions.db`**, and you get an
-  Excel copy to download.
-- **📊 Dashboard** — reads the database and shows:
-  - a **tracker** (e.g. “3 / 14 submissions received” + who's still missing),
-  - metric cards, **RAG donut**, **Accelerate progress bars** (how far each initiative is),
-  - **MI maturity** gauge + bars,
-  - a **“Download combined report” Excel** for all OpCos.
-
-Re-submitting the same OpCo for the same month **updates** its record (no duplicates).
+## ⚠️ IMPORTANT about Streamlit Cloud
+Streamlit Cloud storage is **temporary** — `submissions.xlsx` is wiped when the app
+restarts, and different viewers can hit different servers. So on Streamlit Cloud this is
+great for a **demo**, but for real collection from 20 people either:
+  * run it **locally** (the file persists on your PC), OR
+  * host the master workbook on **OneDrive/SharePoint** (ask me — only `excel_store.py` changes).
 
 ## Files
-
-| File | Purpose |
-|------|---------|
-| `streamlit_app.py` | App entry point (Submit + view switch) |
-| `dashboard.py` | Dashboard (reads DB, shows everything) |
-| `db.py` | **Database layer (SQLite now)** — the only file to change for MTN cloud |
-| `common.py` | Shared helpers + parsing (impacts, RAG, maturity) |
-| `excel_builder.py` | Styled Excel export |
-| `data.json` | OpCo initiatives (sample: Ghana, Zambia, Cameroon, Rwanda) |
-
-## ⚠️ Before showing it around
-
-Replace the **sample `data.json`** (4 OpCos) with your full corrected **14-OpCo `data.json`**.
-Just drop your file in next to `streamlit_app.py` — nothing else changes.
-
-## 🔜 Moving to MTN cloud + a bigger database (later)
-
-The app never touches SQL directly — it only calls `db.save_submission()` and
-`db.load_submissions()`. To move to SQL Server / Postgres:
-
-1. Open **`db.py`**.
-2. Replace the `sqlite3` connection with your cloud DB (e.g. via SQLAlchemy / pyodbc).
-3. Keep the same two functions. **No other file changes.**
-
-The `submissions` table schema (opco, year, month, submitted_by, email, payload_json, …)
-maps straight onto any relational database.
+`streamlit_app.py` · `dashboard.py` · `excel_store.py` (the Excel storage) ·
+`common.py` · `excel_builder.py` · `data.json` (replace with your full 14-OpCo file).
