@@ -1,10 +1,13 @@
 """
-DGW MI & Accelerate — Monthly OpCo Update  (Streamlit edition)
+DGW MI & Accelerate — working proof-of-concept (SQLite backend)
 
-Two views (choose in the sidebar):
-  📝 Submit update — OpCos edit what changed this month; on submit the app builds a
-     styled Excel workbook and stores it under MI and Accelerate/Country/Year/Month/.
-  📊 Dashboard     — executive overview with graphs, RAG mix, and Accelerate progress.
+  📝 Submit update — OpCos edit what changed; on submit it is saved into a local
+     SQLite database (submissions.db) and an Excel copy is offered for download.
+  📊 Dashboard     — reads the database and shows everything (charts, RAG, progress,
+     a who's-in / who's-missing tracker, and a combined Excel export).
+
+Runs with no cloud and no setup. When you move to MTN cloud, only db.py changes
+(swap SQLite for SQL Server / Postgres) — the rest of the app stays the same.
 """
 
 import os
@@ -13,15 +16,16 @@ import datetime
 import streamlit as st
 
 import common
+import db
 from common import (
-    ROOT_LIBRARY, MONTHS, KIND_LABEL, KIND_ORDER, READONLY_COLS,
-    RAG_OPTS, MATURITY, ascii_slug, is_section, field_type, rag_normalise,
-    row_info, col_label, get_bucket_name, save_bytes,
+    MONTHS, KIND_LABEL, KIND_ORDER, READONLY_COLS, RAG_OPTS, MATURITY,
+    ascii_slug, is_section, field_type, rag_normalise, row_info, col_label,
 )
 from excel_builder import build_workbook
 from dashboard import render_dashboard
 
 st.set_page_config(page_title="MTN EBU · MI & Accelerate", page_icon="🟡", layout="wide")
+db.init_db()
 
 
 @st.cache_data
@@ -32,9 +36,6 @@ def load_data():
 
 DATA = load_data()
 
-# --------------------------------------------------------------------------- #
-#  Header
-# --------------------------------------------------------------------------- #
 st.markdown(
     """
     <div style="background:#0B0B0B;padding:14px 20px;border-radius:10px;display:flex;align-items:center;gap:14px;margin-bottom:8px">
@@ -51,24 +52,18 @@ st.markdown(
 view = st.sidebar.radio("View", ["📝 Submit update", "📊 Dashboard"])
 st.sidebar.divider()
 
-# =========================================================================== #
-#  DASHBOARD VIEW
-# =========================================================================== #
 if view == "📊 Dashboard":
     render_dashboard(DATA)
     st.stop()
+
 
 # =========================================================================== #
 #  SUBMIT VIEW
 # =========================================================================== #
 def build_payload(country, reporting_month_name, year, name, email, answers):
-    out = {
-        "opco": country,
-        "reportingMonth": "%s %s" % (reporting_month_name, year),
-        "submittedBy": name, "email": email,
-        "submittedAt": datetime.datetime.utcnow().isoformat() + "Z",
-        "sections": [],
-    }
+    out = {"opco": country, "reportingMonth": "%s %s" % (reporting_month_name, year),
+           "submittedBy": name, "email": email,
+           "submittedAt": datetime.datetime.utcnow().isoformat() + "Z", "sections": []}
     blocks = sorted(DATA[country], key=lambda b: (KIND_ORDER.index(b["kind"]), b["slide"]))
     for b in blocks:
         kind = b["kind"]
@@ -82,8 +77,7 @@ def build_payload(country, reporting_month_name, year, name, email, answers):
             name_i, group, start = row_info(b, row, group)
             if not name_i:
                 continue
-            rec = {"section": "" if group == name_i else group,
-                   "initiative": name_i, "fields": {}, "changed": False}
+            rec = {"section": "" if group == name_i else group, "initiative": name_i, "fields": {}, "changed": False}
             for i in range(start, ro):
                 if i < len(row) and row[i]:
                     rec["fields"][b["headers"][i] if i < len(b["headers"]) else ("col%d" % i)] = row[i]
@@ -119,8 +113,7 @@ with st.sidebar:
     ryear = st.selectbox("Year", [str(today.year - 1), str(today.year), str(today.year + 1)], index=1)
     uname = st.text_input("Your name", placeholder="Full name")
     uemail = st.text_input("Your email", placeholder="name.surname@mtn.com")
-    bucket = get_bucket_name()
-    st.caption("Storage: " + ("Google Cloud Storage · `%s`" % bucket if bucket else "local `submissions/` folder"))
+    st.caption("Saved to: local database `submissions.db` ✅")
 
 if country not in DATA:
     st.info("👈 Choose your OpCo in the sidebar to load your initiatives, or switch to the **Dashboard** view.")
@@ -144,8 +137,8 @@ tabs = st.tabs([KIND_LABEL[k] for k in present_kinds])
 for tab, kind in zip(tabs, present_kinds):
     with tab:
         st.caption({
-            "MI": "Maturity Index initiatives. Update in-progress / planned activity, due dates, maturity and RAG.",
-            "Accelerate": "Accelerate initiatives. Update progress, estimated impact and YTD performance (local currency).",
+            "MI": "Maturity Index initiatives. Update activity, due dates, maturity and RAG.",
+            "Accelerate": "Accelerate initiatives. Update progress, estimated impact and YTD performance.",
             "Priorities": "Monthly KPI values — enter this month's actuals.",
             "MI Tracker": "Actions taken this month against each initiative, plus RAG and timeline.",
         }.get(kind, ""))
@@ -182,14 +175,12 @@ for tab, kind in zip(tabs, present_kinds):
                         if ft == "rag":
                             pv = rag_normalise(prev)
                             with cols[ci % 2]:
-                                answers[key] = st.selectbox(h, RAG_OPTS,
-                                                            index=RAG_OPTS.index(pv) if pv in RAG_OPTS else 0, key=key)
+                                answers[key] = st.selectbox(h, RAG_OPTS, index=RAG_OPTS.index(pv) if pv in RAG_OPTS else 0, key=key)
                             ci += 1
                         elif ft == "maturity":
                             opts = [""] + MATURITY
                             with cols[ci % 2]:
-                                answers[key] = st.selectbox(h, opts,
-                                                            index=opts.index(prev) if prev in opts else 0, key=key)
+                                answers[key] = st.selectbox(h, opts, index=opts.index(prev) if prev in opts else 0, key=key)
                             ci += 1
                         elif ft == "short":
                             with cols[ci % 2]:
@@ -207,25 +198,21 @@ if "submitted" not in st.session_state:
 
 if st.button("Submit to Group EBU ✓", type="primary", disabled=not valid):
     payload = build_payload(country, rmonth, ryear, uname.strip(), uemail.strip(), answers)
-    stamp = "%s%02d" % (ryear, MONTHS.index(rmonth) + 1)
-    fname = "MI_Accelerate_%s_%s.xlsx" % (ascii_slug(country), stamp)
-    folder = "/".join([ROOT_LIBRARY, country, ryear, rmonth])
-    full_path = folder + "/" + fname
-    ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     try:
+        rid = db.save_submission(payload, ryear, rmonth)
         xlsx = build_workbook(payload)
-        saved = save_bytes(full_path, xlsx, ct)
-        save_bytes(folder + "/" + fname.replace(".xlsx", ".json"),
-                   json.dumps(payload, indent=2).encode("utf-8"), "application/json")
-        st.session_state.submitted = {"path": full_path, "saved": saved, "xlsx": xlsx,
-                                      "fname": fname, "updated": payload["itemsUpdated"]}
+        st.session_state.submitted = {
+            "opco": country, "period": "%s %s" % (rmonth, ryear), "id": rid,
+            "updated": payload["itemsUpdated"], "xlsx": xlsx,
+            "fname": "MI_Accelerate_%s_%s%02d.xlsx" % (ascii_slug(country), ryear, MONTHS.index(rmonth) + 1),
+        }
     except Exception as exc:
-        st.error("Could not save on the server: %s" % exc)
+        st.error("Could not save to the database: %s" % exc)
         st.session_state.submitted = None
 
 if st.session_state.submitted:
     s = st.session_state.submitted
-    st.success("**Saved.** %d initiative(s) updated. Filed to:\n\n`%s`  \n_(backend: %s)_"
-               % (s["updated"], s["path"], s["saved"]["backend"]))
-    st.download_button("⬇️ Download a copy of this Excel", data=s["xlsx"], file_name=s["fname"],
+    st.success("**Saved to the database.** %s — %s · %d initiative(s) updated (record #%d). "
+               "It now appears on the Dashboard." % (s["opco"], s["period"], s["updated"], s["id"]))
+    st.download_button("⬇️ Download your Excel copy", data=s["xlsx"], file_name=s["fname"],
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
