@@ -1,0 +1,484 @@
+{
+ "Ghana": [
+  {
+   "kind": "Accelerate",
+   "slide": 7,
+   "headers": [
+    "Initiative",
+    "Key initiative",
+    "Due Date",
+    "Estimated Impact (LC)",
+    "Actual Impact (LC)",
+    "RAG Status"
+   ],
+   "rows": [
+    [
+     "1. SME Indirect Sales",
+     "",
+     "",
+     "",
+     "",
+     ""
+    ],
+    [
+     "1.1 Accelerate Telesales",
+     "Grow telesales",
+     "Dec 2026",
+     "2,151,994",
+     "538,992",
+     "2"
+    ],
+    [
+     "2.1 VAS revenue on Mobile",
+     "Grow VAS",
+     "Dec 2026",
+     "30,796,869",
+     "7,312,457",
+     "2"
+    ],
+    [
+     "2.2 Business Hub Revenue",
+     "Hubs",
+     "Dec 2026",
+     "30,430",
+     "55,214",
+     "1"
+    ]
+   ]
+  },
+  {
+   "kind": "MI",
+   "slide": 9,
+   "headers": [
+    "Initiative",
+    "High Level Activity",
+    "Impact",
+    "Due Date",
+    "Current Maturity",
+    "Target Maturity",
+    "RAG Status",
+    "x"
+   ],
+   "rows": [
+    [
+     "Service Management",
+     "Improve ITSM",
+     "Consistent delivery",
+     "Q4 2026",
+     "Control",
+     "Advanced",
+     "2",
+     "4"
+    ],
+    [
+     "CVM",
+     "2% contribution",
+     "Revenue",
+     "Q4 2026",
+     "Control",
+     "Advanced",
+     "1",
+     "4"
+    ],
+    [
+     "Customer Experience",
+     "Reduce cost to serve",
+     "NPS",
+     "Q4 2026",
+     "Intermediate",
+     "Control",
+     "2",
+     "4"
+    ]
+   ]
+  },
+  {
+   "kind": "Priorities",
+   "slide": 10,
+   "headers": [
+    "Priority Area",
+    "KPI",
+    "Base",
+    "Target",
+    "Aug"
+   ],
+   "rows": [
+    [
+     "Channel",
+     "% Channel contribution",
+     "10%",
+     "25%",
+     "14%"
+    ]
+   ]
+  },
+  {
+   "kind": "MI Tracker",
+   "slide": 11,
+   "headers": [
+    "Initiative",
+    "Focus",
+    "x",
+    "This month actions",
+    "RAG"
+   ],
+   "rows": [
+    [
+     "Sales Excellence",
+     "Pipeline",
+     "",
+     "Weekly pipeline review",
+     "2"
+    ]
+   ]
+  }
+ ],
+ "Zambia": [
+  {
+   "kind": "Accelerate",
+   "slide": 32,
+   "headers": [
+    "Initiative",
+    "Key initiative",
+    "Due Date",
+    "Estimated Impact (LC)",
+    "Actual Impact (LC)",
+    "RAG Status"
+   ],
+   "rows": [
+    [
+     "1.1 SME Prepaid drive",
+     "SME",
+     "31/12/2026",
+     "29,007,032",
+     "4,022,504",
+     "2"
+    ],
+    [
+     "2.2 Inside Sales Workshop",
+     "Inside sales",
+     "31/12/2026",
+     "2,700,000",
+     "2,073,694",
+     "1"
+    ],
+    [
+     "3.1 Fixed Revenue Growth",
+     "Fixed",
+     "31/12/2026",
+     "12,597,000",
+     "2,643,680",
+     "2"
+    ]
+   ]
+  },
+  {
+   "kind": "MI",
+   "slide": 9,
+   "headers": [
+    "Initiative",
+    "High Level Activity",
+    "Impact",
+    "Due Date",
+    "Current Maturity",
+    "Target Maturity",
+    "RAG Status",
+    "x"
+   ],
+   "rows": [
+    [
+     "Implement Sales Excellence",
+     "Salesforce",
+     "Pipeline",
+     "Q2 2026",
+     "Intermediate",
+     "Control",
+     "1",
+     "4"
+    ],
+    [
+     "CVM",
+     "eCVM",
+     "Revenue",
+     "Q4 2026",
+     "Control",
+     "Advanced",
+     "2",
+     "4"
+    ]
+   ]
+  },
+  {
+   "kind": "Priorities",
+   "slide": 35,
+   "headers": [
+    "Priority Area",
+    "KPI",
+    "Base",
+    "Target",
+    "Aug"
+   ],
+   "rows": [
+    [
+     "Converged",
+     "% converged revenue",
+     "5%",
+     "20%",
+     "9%"
+    ]
+   ]
+  },
+  {
+   "kind": "MI Tracker",
+   "slide": 36,
+   "headers": [
+    "Initiative",
+    "Focus",
+    "x",
+    "This month actions",
+    "RAG"
+   ],
+   "rows": [
+    [
+     "CVM",
+     "Campaigns",
+     "",
+     "Launched retention campaign",
+     "1"
+    ]
+   ]
+  }
+ ],
+ "Cameroon": [
+  {
+   "kind": "Accelerate",
+   "slide": 45,
+   "headers": [
+    "Initiative",
+    "Key initiative",
+    "Due Date",
+    "Estimated Impact (LC)",
+    "Actual Impact (LC)",
+    "RAG Status"
+   ],
+   "rows": [
+    [
+     "1.1 S&D as distribution channel",
+     "Channel",
+     "Dec 2026",
+     "575 Mn",
+     "112.2 Mn",
+     "2"
+    ],
+    [
+     "2.1 Pricing Optimization",
+     "Pricing",
+     "Dec 2026",
+     "1 Bn",
+     "203 Mn",
+     "2"
+    ],
+    [
+     "3.1 Ringfence strategic tenders",
+     "Tenders",
+     "Dec 2026",
+     "6.9 Bn",
+     "489 Mn",
+     "3"
+    ]
+   ]
+  },
+  {
+   "kind": "MI",
+   "slide": 9,
+   "headers": [
+    "Initiative",
+    "High Level Activity",
+    "Impact",
+    "Due Date",
+    "Current Maturity",
+    "Target Maturity",
+    "RAG Status",
+    "x"
+   ],
+   "rows": [
+    [
+     "Implement Sales Excellence",
+     "S&D",
+     "Coverage",
+     "Q3 2026",
+     "Intermediate",
+     "Control",
+     "2",
+     "4"
+    ],
+    [
+     "Back Office Transformation",
+     "Automate",
+     "Efficiency",
+     "Q4 2026",
+     "Basic",
+     "Intermediate",
+     "3",
+     "4"
+    ]
+   ]
+  },
+  {
+   "kind": "Priorities",
+   "slide": 50,
+   "headers": [
+    "Priority Area",
+    "KPI",
+    "Base",
+    "Target",
+    "Aug"
+   ],
+   "rows": [
+    [
+     "Public Sector",
+     "# strategic tenders",
+     "2",
+     "10",
+     "4"
+    ]
+   ]
+  },
+  {
+   "kind": "MI Tracker",
+   "slide": 51,
+   "headers": [
+    "Initiative",
+    "Focus",
+    "x",
+    "This month actions",
+    "RAG"
+   ],
+   "rows": [
+    [
+     "Pricing",
+     "Renewal",
+     "",
+     "PNL renewal campaign launched",
+     "2"
+    ]
+   ]
+  }
+ ],
+ "Rwanda": [
+  {
+   "kind": "Accelerate",
+   "slide": 53,
+   "headers": [
+    "Initiative",
+    "Key initiative",
+    "Due Date",
+    "Estimated Impact (LC)",
+    "Actual Impact (LC)",
+    "RAG Status"
+   ],
+   "rows": [
+    [
+     "Resourcing",
+     "Hire sales",
+     "Dec 2026",
+     "5 Mn",
+     "2 Mn",
+     "2"
+    ],
+    [
+     "eCVM",
+     "Growth",
+     "Dec 2026",
+     "18 Mn",
+     "13.9 Mn",
+     "1"
+    ],
+    [
+     "Converged Solutions",
+     "Bundle",
+     "Dec 2026",
+     "15.7 Mn",
+     "4.5 Mn",
+     "3"
+    ]
+   ]
+  },
+  {
+   "kind": "MI",
+   "slide": 9,
+   "headers": [
+    "Initiative",
+    "High Level Activity",
+    "Impact",
+    "Due Date",
+    "Current Maturity",
+    "Target Maturity",
+    "RAG Status",
+    "x"
+   ],
+   "rows": [
+    [
+     "Drive Sales Excellence",
+     "Coaching",
+     "Pipeline",
+     "Q2 2026",
+     "Control",
+     "Advanced",
+     "1",
+     "4"
+    ],
+    [
+     "Customer Experience",
+     "NPS",
+     "Experience",
+     "Q4 2026",
+     "Intermediate",
+     "Control",
+     "2",
+     "4"
+    ]
+   ]
+  },
+  {
+   "kind": "Priorities",
+   "slide": 55,
+   "headers": [
+    "Priority Area",
+    "KPI",
+    "Base",
+    "Target",
+    "Aug"
+   ],
+   "rows": [
+    [
+     "Converged",
+     "% converged",
+     "6%",
+     "22%",
+     "12%"
+    ]
+   ]
+  },
+  {
+   "kind": "MI Tracker",
+   "slide": 56,
+   "headers": [
+    "Initiative",
+    "Focus",
+    "x",
+    "This month actions",
+    "RAG"
+   ],
+   "rows": [
+    [
+     "Sales Excellence",
+     "Enablement",
+     "",
+     "Sales force launched",
+     "1"
+    ]
+   ]
+  }
+ ]
+}
