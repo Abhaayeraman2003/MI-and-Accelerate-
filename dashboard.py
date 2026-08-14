@@ -1,15 +1,16 @@
 """
-Dashboard view — reads submissions straight from the SQLite database and shows
-everything: metric cards, RAG donut, Accelerate progress, MI maturity, a
-submission tracker (who's in / who's missing), and a combined Excel export.
+Dashboard (admin) — preview of the initiatives + the master-file download.
+
+With the OneDrive/Power Automate backend, the consolidated data lives in the master
+Excel in your OneDrive (this view shows the baseline deck data as a preview, and gives
+you the master download). Protected by an admin passcode in streamlit_app.py.
 """
 
-import io
 import statistics
 import streamlit as st
 
 import common
-import db
+import excel_store as store
 
 try:
     import plotly.graph_objects as go
@@ -52,7 +53,7 @@ def _rag_donut(counts):
     labels = [k for k in ["Green", "Amber", "Red", "Blue", "Not set"] if counts.get(k)]
     values = [counts[k] for k in labels]
     if not values:
-        st.info("No RAG data yet.")
+        st.info("No RAG data.")
         return
     if HAS_PLOTLY:
         fig = go.Figure(go.Pie(labels=labels, values=values, hole=0.55,
@@ -71,41 +72,23 @@ def _progress_row(label, pct, right):
 
 
 def render_dashboard(DATA):
-    st.header("📊 MI & Accelerate — Executive Dashboard")
+    st.header("📊 MI & Accelerate — Executive Dashboard (admin)")
 
-    subs = db.load_submissions()
-    all_opcos = list(DATA.keys())
-    submitted_opcos = sorted({p.get("opco") for p in subs})
+    st.info("The consolidated master workbook lives in your OneDrive "
+            "(**MI and Accelerate / submissions.xlsx**). Open it there for the live, "
+            "date-stamped submissions from all OpCos. Below is a preview of the initiatives.")
+    st.download_button("⬇️ Download local master copy (if running locally)",
+                       data=store.master_bytes(), file_name="submissions.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-    # ---- submission tracker ----
-    done = len(submitted_opcos)
-    total = len(all_opcos)
-    tc1, tc2 = st.columns([1, 3])
-    tc1.metric("Submissions received", "%d / %d" % (done, total))
-    missing = [o for o in all_opcos if o not in submitted_opcos]
-    with tc2:
-        if submitted_opcos:
-            st.write("**In:** " + ", ".join(submitted_opcos))
-        st.write("**Still waiting on:** " + (", ".join(missing) if missing else "— none, all in! 🎉"))
-
-    use_baseline = False
-    if not subs:
-        st.warning("No submissions in the database yet — showing **baseline (deck) data** so you "
-                   "can preview. As OpCos submit, this dashboard fills in automatically.")
-        use_baseline = True
-
-    if use_baseline:
-        records = []
-        for c in DATA:
-            records += common.iter_baseline_records(DATA, c)
-    else:
-        records = common.submissions_to_records(subs)
+    # preview using baseline (deck) data so charts are populated even before submits
+    records = []
+    for c in DATA:
+        records += common.iter_baseline_records(DATA, c)
 
     st.divider()
-
-    # ---- filter ----
-    opcos_in_data = sorted({r["opco"] for r in records})
-    sel = st.multiselect("Filter OpCo(s)", opcos_in_data, default=opcos_in_data)
+    opcos = sorted({r["opco"] for r in records})
+    sel = st.multiselect("Filter OpCo(s)", opcos, default=opcos)
     records = [r for r in records if r["opco"] in sel]
     if not records:
         st.info("Nothing matches the current filter.")
@@ -126,14 +109,11 @@ def render_dashboard(DATA):
             b = common.rag_bucket(r["fields"].get("RAG Status", ""))
             rag_counts[b] = rag_counts.get(b, 0) + 1
     avg_accel = statistics.mean([p for _, p, _, _ in accel_prog]) if accel_prog else 0.0
-    rated = sum(v for k, v in rag_counts.items() if k != "Not set")
-    green_pct = (rag_counts.get("Green", 0) / rated * 100.0) if rated else 0.0
 
-    m1, m2, m3, m4 = st.columns(4)
+    m1, m2, m3 = st.columns(3)
     m1.metric("OpCos in view", len(sel))
     m2.metric("Initiatives", len(records))
     m3.metric("Avg Accelerate completion", "%.1f%%" % avg_accel)
-    m4.metric("RAG green", "%.0f%%" % green_pct)
 
     st.divider()
     c1, c2 = st.columns(2)
@@ -157,7 +137,7 @@ def render_dashboard(DATA):
             colors = ["#2E7D32" if v >= 75 else "#E8A317" if v >= 40 else "#C62828" for v in vals]
             fig = go.Figure(go.Bar(x=vals, y=labels, orientation="h", marker=dict(color=colors),
                                    text=[f"{v}%" for v in vals], textposition="auto"))
-            fig.update_layout(height=max(300, 26 * len(vals)), margin=dict(l=10, r=10, t=10, b=10),
+            fig.update_layout(height=max(300, 22 * len(vals)), margin=dict(l=10, r=10, t=10, b=10),
                               xaxis=dict(title="% of estimated impact achieved", range=[0, 100]),
                               yaxis=dict(autorange="reversed"))
             st.plotly_chart(fig, use_container_width=True)
@@ -165,8 +145,7 @@ def render_dashboard(DATA):
         for r, p, act, est in accel_prog:
             by_opco.setdefault(r["opco"], []).append((r, p, act, est))
         for opco in sorted(by_opco):
-            with st.expander("%s — %d initiative(s)" % (opco, len(by_opco[opco])),
-                             expanded=(len(by_opco) <= 3)):
+            with st.expander("%s — %d initiative(s)" % (opco, len(by_opco[opco]))):
                 for r, p, act, est in sorted(by_opco[opco], key=lambda x: x[1], reverse=True):
                     _progress_row(r["initiative"], p, "(%s / %s)" % (_fmt(act), _fmt(est)))
 
@@ -177,9 +156,7 @@ def render_dashboard(DATA):
         mp, cur, tgt = common.maturity_progress(r["fields"])
         if mp is not None:
             mi_prog.append((r, mp, cur, tgt))
-    if not mi_prog:
-        st.info("No MI initiatives with current & target maturity in this selection.")
-    else:
+    if mi_prog:
         avg_mi = statistics.mean([p for _, p, _, _ in mi_prog])
         cA, cB = st.columns([1, 2])
         with cA:
@@ -191,45 +168,8 @@ def render_dashboard(DATA):
                 vals = [round(p, 0) for _, p, _, _ in s]
                 fig = go.Figure(go.Bar(x=vals, y=labels, orientation="h", marker=dict(color="#1565C0"),
                                        text=[f"{int(v)}%" for v in vals], textposition="auto"))
-                fig.update_layout(height=max(280, 24 * len(vals)), margin=dict(l=10, r=10, t=10, b=10),
+                fig.update_layout(height=max(280, 20 * len(vals)), margin=dict(l=10, r=10, t=10, b=10),
                                   xaxis=dict(title="Current maturity as % of target", range=[0, 100]))
                 st.plotly_chart(fig, use_container_width=True)
-            else:
-                for r, p, cur, tgt in sorted(mi_prog, key=lambda x: x[1], reverse=True):
-                    _progress_row("%s · %s" % (r["opco"], r["initiative"]), p, "%s→%s" % (cur, tgt))
 
-    st.divider()
-    _export_combined(records)
-    st.caption("Data source: local SQLite database (`submissions.db`). "
-               "Accelerate % = actual ÷ estimated impact; maturity % maps Basic→Intermediate→Control→Advanced.")
-
-
-def _export_combined(records):
-    try:
-        from openpyxl import Workbook
-        from openpyxl.styles import Font, PatternFill
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "All submissions"
-        headers = ["OpCo", "Type", "Section", "Initiative", "RAG", "Accelerate %",
-                   "Actual", "Estimated", "Maturity %", "Current", "Target"]
-        for c, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=c, value=h)
-            cell.font = Font(bold=True, color="0B0B0B")
-            cell.fill = PatternFill("solid", fgColor="FFCB05")
-        for rec in records:
-            ap, act, est, _e, _a = common.accel_progress(rec["fields"]) if rec["kind"] == "Accelerate" else (None, None, None, None, None)
-            mp, cur, tgt = common.maturity_progress(rec["fields"]) if rec["kind"] == "MI" else (None, None, None)
-            ws.append([rec["opco"], rec["type"], rec.get("section", ""), rec["initiative"],
-                       common.rag_bucket(rec["fields"].get("RAG Status", "")),
-                       round(ap, 1) if ap is not None else "",
-                       act if act is not None else "", est if est is not None else "",
-                       round(mp, 0) if mp is not None else "", cur or "", tgt or ""])
-        ws.freeze_panes = "A2"
-        buf = io.BytesIO()
-        wb.save(buf)
-        st.download_button("⬇️ Download combined report (all OpCos in view) as Excel",
-                           data=buf.getvalue(), file_name="MI_Accelerate_Combined_Report.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    except Exception as exc:
-        st.caption("Combined export unavailable: %s" % exc)
+    st.caption("Preview uses the on-record deck values. Live submissions land in the OneDrive master file.")

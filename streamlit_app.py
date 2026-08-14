@@ -1,13 +1,11 @@
 """
-DGW MI & Accelerate — working proof-of-concept (SQLite backend)
+DGW MI & Accelerate — Monthly OpCo Update (OneDrive master file via Power Automate).
 
-  📝 Submit update — OpCos edit what changed; on submit it is saved into a local
-     SQLite database (submissions.db) and an Excel copy is offered for download.
-  📊 Dashboard     — reads the database and shows everything (charts, RAG, progress,
-     a who's-in / who's-missing tracker, and a combined Excel export).
+  📝 Submit update — OpCos edit what changed; on submit the rows are sent to your Power
+     Automate flow, which appends them to the single master workbook in your OneDrive.
+  📊 Dashboard (admin) — passcode-protected; preview + master download.
 
-Runs with no cloud and no setup. When you move to MTN cloud, only db.py changes
-(swap SQLite for SQL Server / Postgres) — the rest of the app stays the same.
+Set in secrets:  flow_url = "<Power Automate HTTP URL>"   and   admin_pin = "<passcode>"
 """
 
 import os
@@ -16,7 +14,7 @@ import datetime
 import streamlit as st
 
 import common
-import db
+import excel_store as store
 from common import (
     MONTHS, KIND_LABEL, KIND_ORDER, READONLY_COLS, RAG_OPTS, MATURITY,
     ascii_slug, is_section, field_type, rag_normalise, row_info, col_label,
@@ -25,7 +23,6 @@ from excel_builder import build_workbook
 from dashboard import render_dashboard
 
 st.set_page_config(page_title="MTN EBU · MI & Accelerate", page_icon="🟡", layout="wide")
-db.init_db()
 
 
 @st.cache_data
@@ -49,17 +46,32 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-view = st.sidebar.radio("View", ["📝 Submit update", "📊 Dashboard"])
+view = st.sidebar.radio("View", ["📝 Submit update", "📊 Dashboard (admin)"])
 st.sidebar.divider()
 
-if view == "📊 Dashboard":
+
+def _admin_pin():
+    try:
+        return str(st.secrets.get("admin_pin", "")).strip()
+    except Exception:
+        return os.environ.get("ADMIN_PIN", "").strip()
+
+
+if view == "📊 Dashboard (admin)":
+    pin = _admin_pin()
+    if pin:
+        entered = st.sidebar.text_input("Admin passcode", type="password",
+                                        help="The dashboard and master file are restricted to Group EBU.")
+        if entered != pin:
+            st.info("🔒 The dashboard and master workbook are restricted to Group EBU. "
+                    "Enter the admin passcode in the sidebar to continue.")
+            if entered:
+                st.sidebar.error("Incorrect passcode.")
+            st.stop()
     render_dashboard(DATA)
     st.stop()
 
 
-# =========================================================================== #
-#  SUBMIT VIEW
-# =========================================================================== #
 def build_payload(country, reporting_month_name, year, name, email, answers):
     out = {"opco": country, "reportingMonth": "%s %s" % (reporting_month_name, year),
            "submittedBy": name, "email": email,
@@ -113,7 +125,7 @@ with st.sidebar:
     ryear = st.selectbox("Year", [str(today.year - 1), str(today.year), str(today.year + 1)], index=1)
     uname = st.text_input("Your name", placeholder="Full name")
     uemail = st.text_input("Your email", placeholder="name.surname@mtn.com")
-    st.caption("Saved to: local database `submissions.db` ✅")
+    st.caption("Your update is saved securely to Group EBU (%s)." % store.storage_label())
 
 if country not in DATA:
     st.info("👈 Choose your OpCo in the sidebar to load your initiatives, or switch to the **Dashboard** view.")
@@ -199,20 +211,23 @@ if "submitted" not in st.session_state:
 if st.button("Submit to Group EBU ✓", type="primary", disabled=not valid):
     payload = build_payload(country, rmonth, ryear, uname.strip(), uemail.strip(), answers)
     try:
-        rid = db.save_submission(payload, ryear, rmonth)
+        n = store.save_submission(payload, ryear, rmonth)
         xlsx = build_workbook(payload)
         st.session_state.submitted = {
-            "opco": country, "period": "%s %s" % (rmonth, ryear), "id": rid,
+            "opco": country, "period": "%s %s" % (rmonth, ryear), "rows": n,
             "updated": payload["itemsUpdated"], "xlsx": xlsx,
+            "ts": payload.get("submittedAt", "").replace("T", " ").replace("Z", ""),
             "fname": "MI_Accelerate_%s_%s%02d.xlsx" % (ascii_slug(country), ryear, MONTHS.index(rmonth) + 1),
         }
     except Exception as exc:
-        st.error("Could not save to the database: %s" % exc)
+        st.error("Could not submit: %s" % exc)
         st.session_state.submitted = None
 
 if st.session_state.submitted:
     s = st.session_state.submitted
-    st.success("**Saved to the database.** %s — %s · %d initiative(s) updated (record #%d). "
-               "It now appears on the Dashboard." % (s["opco"], s["period"], s["updated"], s["id"]))
-    st.download_button("⬇️ Download your Excel copy", data=s["xlsx"], file_name=s["fname"],
+    st.success("**Submitted to Group EBU ✓** %s — %s · %d initiative(s) updated, "
+               "time-stamped **%s (UTC)**. Thank you."
+               % (s["opco"], s["period"], s["updated"], s["ts"]))
+    st.download_button("⬇️ Download a copy of your own submission", data=s["xlsx"], file_name=s["fname"],
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    st.caption("The consolidated master file (all OpCos) is held by Group EBU and is not downloadable here.")

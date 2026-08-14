@@ -1,57 +1,45 @@
-# DGW MI & Accelerate — working proof-of-concept
+# MTN EBU — MI & Accelerate Monthly Update (Streamlit)
 
-A single, self-contained app that runs **right now** on your laptop, shows **everything**,
-and already stores data in a **real database** (SQLite) — so moving to MTN cloud later is easy.
+A web form where each OpCo updates their MI & Accelerate initiatives. On submit, the rows
+are appended (via Power Automate) to ONE master Excel file in your OneDrive
+(**MI and Accelerate / submissions.xlsx**). Submitters can't access the master file.
 
-## ▶️ Run it (2 steps)
-
-**Windows:** double-click **`run_windows.bat`**
-**Mac/Linux:** run **`./run_mac_linux.sh`**
-
-…or manually:
-```bash
-pip install -r requirements.txt
-streamlit run streamlit_app.py
-```
-Then open **http://localhost:8501**.
-
-## What it does
-
-- **📝 Submit update** — pick an OpCo + month, edit what changed, hit Submit.
-  The submission is written to a local database file **`submissions.db`**, and you get an
-  Excel copy to download.
-- **📊 Dashboard** — reads the database and shows:
-  - a **tracker** (e.g. “3 / 14 submissions received” + who's still missing),
-  - metric cards, **RAG donut**, **Accelerate progress bars** (how far each initiative is),
-  - **MI maturity** gauge + bars,
-  - a **“Download combined report” Excel** for all OpCos.
-
-Re-submitting the same OpCo for the same month **updates** its record (no duplicates).
-
-## Files
-
+## What's in this repo
 | File | Purpose |
 |------|---------|
-| `streamlit_app.py` | App entry point (Submit + view switch) |
-| `dashboard.py` | Dashboard (reads DB, shows everything) |
-| `db.py` | **Database layer (SQLite now)** — the only file to change for MTN cloud |
-| `common.py` | Shared helpers + parsing (impacts, RAG, maturity) |
-| `excel_builder.py` | Styled Excel export |
-| `data.json` | OpCo initiatives (sample: Ghana, Zambia, Cameroon, Rwanda) |
+| `streamlit_app.py` | The app (Submit form + admin Dashboard) |
+| `dashboard.py` | Admin dashboard (passcode-protected) |
+| `excel_store.py` | Sends each submission to your Power Automate flow → OneDrive |
+| `excel_builder.py` | Builds each submitter's own Excel copy |
+| `common.py` | Shared helpers / calculations |
+| `data.json` | All 14 OpCos and their initiatives |
+| `requirements.txt` | Dependencies |
+| `.streamlit/config.toml` | MTN theme |
+| `.streamlit/secrets.toml.example` | Template for `flow_url` + `admin_pin` |
+| `master_submissions_TEMPLATE.xlsx` | The pre-made master file to upload to OneDrive (NOT needed in the repo, but handy) |
 
-## ⚠️ Before showing it around
+## Deploy on Streamlit Cloud
+1. Push this whole folder to a GitHub repo.
+2. **share.streamlit.io** → **New app** → pick the repo → **Main file:** `streamlit_app.py` → **Deploy**.
+3. In the app → **Settings → Secrets**, paste:
+   ```toml
+   flow_url = "https://prod-....logic.azure.com/...invoke?..."
+   admin_pin = "your-passcode"
+   ```
+4. Reboot the app.
 
-Replace the **sample `data.json`** (4 OpCos) with your full corrected **14-OpCo `data.json`**.
-Just drop your file in next to `streamlit_app.py` — nothing else changes.
+## OneDrive master file (Power Automate)
+- Upload `master_submissions_TEMPLATE.xlsx` to your OneDrive **MI and Accelerate** folder
+  and rename it **submissions.xlsx** (it already has the `Submissions` table).
+- Build a Power Automate *“When an HTTP request is received”* flow that loops the incoming
+  `rows` and does **Excel → “Add a row into a table”** into that file's `Submissions` table.
+- Put the flow's HTTP URL into `flow_url` (above).
 
-## 🔜 Moving to MTN cloud + a bigger database (later)
+Full click-by-click steps are in **SETUP_OneDrive_OneFile.md** (delivered alongside this).
 
-The app never touches SQL directly — it only calls `db.save_submission()` and
-`db.load_submissions()`. To move to SQL Server / Postgres:
-
-1. Open **`db.py`**.
-2. Replace the `sqlite3` connection with your cloud DB (e.g. via SQLAlchemy / pyodbc).
-3. Keep the same two functions. **No other file changes.**
-
-The `submissions` table schema (opco, year, month, submitted_by, email, payload_json, …)
-maps straight onto any relational database.
+## Notes
+- **No secrets set?** The app falls back to a local `submissions.xlsx` next to the code —
+  good for testing on your PC (`pip install -r requirements.txt` then
+  `streamlit run streamlit_app.py`).
+- The Dashboard (admin) is passcode-protected; submitters only get their own Excel copy.
+- Every row is date & time-stamped (Submitted date / Submitted time columns, UTC).
