@@ -209,19 +209,38 @@ if "submitted" not in st.session_state:
     st.session_state.submitted = None
 
 if st.button("Submit to Group EBU ✓", type="primary", disabled=not valid):
-    payload = build_payload(country, rmonth, ryear, uname.strip(), uemail.strip(), answers)
+
+    payload = build_payload(
+        country,
+        rmonth,
+        ryear,
+        uname.strip(),
+        uemail.strip(),
+        answers
+    )
+
     try:
-        n = store.save_submission(payload, ryear, rmonth)
-        xlsx = build_workbook(payload)
-        st.session_state.submitted = {
-            "opco": country, "period": "%s %s" % (rmonth, ryear), "rows": n,
-            "updated": payload["itemsUpdated"], "xlsx": xlsx,
-            "ts": payload.get("submittedAt", "").replace("T", " ").replace("Z", ""),
-            "fname": "MI_Accelerate_%s_%s%02d.xlsx" % (ascii_slug(country), ryear, MONTHS.index(rmonth) + 1),
-        }
+
+        response = requests.post(
+            st.secrets["flow_url"],
+            json=payload,
+            timeout=60
+        )
+
+        st.write("Power Automate Status:", response.status_code)
+
+        if response.text:
+            st.write("Response:", response.text)
+
+        if response.status_code in [200, 201, 202]:
+            st.success("✅ Submission sent to Power Automate successfully.")
+        else:
+            st.error(
+                f"❌ Power Automate returned status {response.status_code}"
+            )
+
     except Exception as exc:
-        st.error("Could not submit: %s" % exc)
-        st.session_state.submitted = None
+        st.error(f"❌ Error calling Power Automate: {exc}")
 
 if st.session_state.submitted:
     s = st.session_state.submitted
